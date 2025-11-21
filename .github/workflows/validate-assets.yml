@@ -1,0 +1,58 @@
+name: Validate Assets
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Check file sizes
+      run: |
+        echo "Checking for files larger than 10MB..."
+        large_files=$(find . -type f -size +10M -not -path "./.git/*")
+        if [ -n "$large_files" ]; then
+          echo "⚠️  Warning: The following files are larger than 10MB:"
+          echo "$large_files"
+          echo "Consider optimizing or hosting these files elsewhere."
+        else
+          echo "✅ All files are within size limits."
+        fi
+    
+    - name: Check for sensitive files
+      run: |
+        echo "Checking for potentially sensitive files..."
+        if find . -name "*.env" -o -name "*.key" -o -name "*.pem" -o -name "*secret*" -not -path "./.git/*" | grep -q .; then
+          echo "❌ Error: Potentially sensitive files found!"
+          find . -name "*.env" -o -name "*.key" -o -name "*.pem" -o -name "*secret*" -not -path "./.git/*"
+          exit 1
+        else
+          echo "✅ No sensitive files detected."
+        fi
+    
+    - name: Validate structure
+      run: |
+        echo "Validating repository structure..."
+        required_dirs=("css" "js" "images" "fonts" "docs")
+        for dir in "${required_dirs[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "✅ Directory '$dir' exists"
+          else
+            echo "⚠️  Directory '$dir' not found"
+          fi
+        done
+    
+    - name: Summary
+      run: |
+        echo "📊 Asset Summary:"
+        echo "CSS files: $(find css -type f -name "*.css" 2>/dev/null | wc -l)"
+        echo "JS files: $(find js -type f -name "*.js" 2>/dev/null | wc -l)"
+        echo "Image files: $(find images -type f 2>/dev/null | wc -l)"
+        echo "Font files: $(find fonts -type f 2>/dev/null | wc -l)"
